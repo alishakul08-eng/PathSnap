@@ -39,33 +39,17 @@ class PathSnapPipeline:
 
     # ------------------------------------------------------------------ public
     def predict(self, track: np.ndarray, nodes: np.ndarray, arcs: np.ndarray) -> PredictionResult:
-        tm = {}
-        t0 = time.perf_counter()
-        proj = make_projector(track[:, 0].mean(), track[:, 1].mean())
-        px, py = proj(track[:, 0], track[:, 1])
-        ax, ay = proj(nodes[arcs[:, 0], 0], nodes[arcs[:, 0], 1])
-        bx, by = proj(nodes[arcs[:, 1], 0], nodes[arcs[:, 1], 1])
-        seg = (ax, ay, bx, by)
-
-        t = time.perf_counter(); cands = self.generate_candidates(px, py, seg)
-        tm["candidates"] = (time.perf_counter() - t) * 1e3
-        t = time.perf_counter(); feats = self.extract_features(px, py, seg, cands)
-        tm["features"] = (time.perf_counter() - t) * 1e3
-        t = time.perf_counter(); scores = self.score_candidates(feats)
-        tm["scoring"] = (time.perf_counter() - t) * 1e3
-        t = time.perf_counter(); point_arcs = self.decode(cands, scores, arcs)
-        tm["decode"] = (time.perf_counter() - t) * 1e3
-        tm["total"] = (time.perf_counter() - t0) * 1e3
-
+        from . import v2_infer
+        point_arcs, tm = v2_infer.predict_arrays(track, nodes, arcs)
         route = []
         for a in point_arcs:
             if a >= 0 and (not route or route[-1] != a):
                 route.append(int(a))
         return PredictionResult(
             point_arcs=point_arcs, route_arcs=route, timings_ms=tm,
-            model_info={"status": "PLACEHOLDER",
-                        "classifier": "gaussian-distance stub (replace with trained model)",
-                        "decoder": "per-point argmax, no HMM (replace with Viterbi)"},
+            model_info={"status": "TRAINED MODEL",
+                        "classifier": "HistGradientBoosting v2 (21 features incl. direction features)",
+                        "decoder": "Viterbi (path-aware, U-turn penalty)"},
         )
 
     # --------------------------------------------------------- pipeline stages
