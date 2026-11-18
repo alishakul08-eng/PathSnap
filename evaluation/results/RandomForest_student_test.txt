@@ -1,0 +1,20 @@
+train rows: 1042085 | test rows: 95800 | test trips: 10
+top1      0.8363
+accuracy  0.9195
+macro_f1  0.8779
+precision 0.7291
+recall    0.9026
+log_loss  0.2015
+train 50s | infer 0.26s
+
+per-trip top-1:
+0 0.922
+7 0.921
+9 0.882
+40 0.888
+52 0.913
+56 0.887
+65 0.805
+76 0.812
+77 0.66
+91 0.856
