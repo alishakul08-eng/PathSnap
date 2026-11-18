@@ -1,0 +1,9 @@
+terminal 1:
+cd pathsnap
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
+
+terminal 2:
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
