@@ -19,3 +19,4 @@ evaluation/results/*_quick.csv
 data/trips/
 __pycache__/
 *.pyc
+visualisations/evaluator_maps/
