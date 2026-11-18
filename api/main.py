@@ -10,7 +10,7 @@ log = logging.getLogger("pathsnap")
 app = FastAPI(title="PathSnap API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-EVAL_TRIP_IDS = ["00000000", "00000007"]  # TODO: the 10 evaluator trip IDs (IDs only, never labels)
+EVAL_TRIP_IDS = ["00000015", "00000017", "00000023", "00000030", "00000049", "00000059", "00000067", "00000073", "00000087", "00000094"]
 
 @app.on_event("startup")
 def startup():
