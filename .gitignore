@@ -15,3 +15,7 @@ evaluation/results/*_quick.csv
 =======
 .env
 >>>>>>> origin/main
+
+data/trips/
+__pycache__/
+*.pyc
