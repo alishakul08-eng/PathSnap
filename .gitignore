@@ -1,1 +1,17 @@
+<<<<<<< HEAD
+__pycache__/
+*.pyc
+.venv/
 .env
+.DS_Store
+.ipynb_checkpoints/
+data/raw/
+data/
+evaluator_test/
+*.zip
+.venv/
+__pycache__/
+evaluation/results/*_quick.csv
+=======
+.env
+>>>>>>> origin/main
