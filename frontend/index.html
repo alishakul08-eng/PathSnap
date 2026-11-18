@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PathSnap Evaluator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;display:flex;height:100vh;color:#1a1a1a}
+  #side{width:340px;padding:14px;overflow-y:auto;border-right:1px solid #ddd;background:#fafafa}
+  #map{flex:1} h1{font-size:20px;margin:0 0 10px} h2{font-size:14px;margin:16px 0 6px;color:#555;text-transform:uppercase;letter-spacing:.04em}
+  input{width:100%;padding:6px;border:1px solid #bbb;border-radius:6px}
+  button{padding:8px 10px;border:1px solid #888;border-radius:6px;background:#fff;cursor:pointer}
+  button:hover{background:#eef} .trip{display:block;width:100%;text-align:left;margin:4px 0}
+  .trip.sel{background:#1d4ed8;color:#fff;border-color:#1d4ed8} #run{width:100%;margin-top:10px;background:#16a34a;color:#fff;border-color:#16a34a;font-weight:600}
+  #run:disabled{opacity:.5} table{width:100%;border-collapse:collapse;font-size:13px} td{padding:3px 0;border-bottom:1px solid #eee} td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+  #status{font-size:12px;margin-top:6px} .ok{color:#15803d}.bad{color:#b91c1c}
+  .warn{background:#fef3c7;border:1px solid #f59e0b;padding:6px;border-radius:6px;font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="side">
+  <h1>PathSnap Evaluator</h1>
+  <h2>API server (Laptop 1)</h2>
+  <input id="api"><div id="status">checking…</div>
+  <button id="check" style="margin-top:6px">Check connection</button>
+  <h2>Evaluation trips</h2>
+  <div id="trips"></div>
+  <button id="run" disabled>Run prediction</button>
+  <div id="model" class="warn" style="display:none"></div>
+  <h2>Metrics</h2><table id="metrics"><tr><td colspan="2">—</td></tr></table>
+  <h2>Timings (ms)</h2><table id="timings"><tr><td colspan="2">—</td></tr></table>
+</div>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$("api").value = localStorage.getItem("pathsnap_api") || window.PATHSNAP_API;
+let selected = null, layers = {};
+const map = L.map("map").setView([43.4, -3.8], 12);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
+const overlay = L.control.layers(null, {}, {collapsed:false}).addTo(map);
+const api = () => $("api").value.replace(/\/+$/, "");
+
+async function connect() {
+  localStorage.setItem("pathsnap_api", $("api").value);
+  $("status").textContent = "checking…"; $("status").className = "";
+  try {
+    const h = await (await fetch(api() + "/health")).json();
+    $("status").textContent = `connected — ${h.n_trips} trip(s) available`; $("status").className = "ok";
+    const t = await (await fetch(api() + "/trips")).json();
+    $("trips").innerHTML = "";
+    t.trips.forEach(x => {
+      const b = document.createElement("button"); b.className = "trip";
+      b.textContent = `Trip ${x.trip_id}  (${x.n_points} GPS points)`;
+      b.onclick = () => { selected = x.trip_id; document.querySelectorAll(".trip").forEach(e => e.classList.remove("sel")); b.classList.add("sel"); $("run").disabled = false; };
+      $("trips").appendChild(b);
+    });
+  } catch (e) { $("status").textContent = "cannot reach API: " + e.message; $("status").className = "bad"; }
+}
+
+function rows(el, obj) {
+  el.innerHTML = Object.entries(obj).map(([k, v]) =>
+    `<tr><td>${k}</td><td>${typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(3)) : (v ?? "n/a")}</td></tr>`).join("");
+}
+
+$("run").onclick = async () => {
+  $("run").disabled = true; $("run").textContent = "Running…";
+  try {
+    const r = await fetch(api() + "/predict", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({trip_id: selected})});
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    Object.values(layers).forEach(l => { map.removeLayer(l); overlay.removeLayer(l); }); layers = {};
+    layers["GPS observations (blue)"] = L.layerGroup(d.gps.map(p => L.circleMarker(p, {radius: 3, color: "#1d4ed8", fillOpacity: .8}))).addTo(map);
+    layers["Predicted route (red)"] = L.layerGroup(d.predicted_route_geometry.map(g => L.polyline(g, {color: "#dc2626", weight: 5, opacity: .8}))).addTo(map);
+    Object.entries(layers).forEach(([n, l]) => overlay.addOverlay(l, n));
+    map.fitBounds(L.latLngBounds(d.gps).pad(0.1));
+    rows($("metrics"), d.metrics.has_reference ? d.metrics : {reference: "not available"});
+    rows($("timings"), d.timings_ms);
+    $("model").style.display = "block";
+    $("model").innerHTML = `<b>Model status: ${d.model_info.status}</b><br>classifier: ${d.model_info.classifier}<br>decoder: ${d.model_info.decoder}`;
+  } catch (e) { alert("Prediction failed: " + e.message); }
+  $("run").disabled = false; $("run").textContent = "Run prediction";
+};
+$("check").onclick = connect; connect();
+</script>
+</body>
+</html>
