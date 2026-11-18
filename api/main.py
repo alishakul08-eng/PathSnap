@@ -34,3 +34,8 @@ def predict(req: PredictRequest):
         return inference.run_pipeline(req.trip_id)
     except NotImplementedError as e:
         raise HTTPException(status_code=501, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        log.exception("Pipeline error for trip %s", req.trip_id)
+        raise HTTPException(status_code=500, detail=str(e))
